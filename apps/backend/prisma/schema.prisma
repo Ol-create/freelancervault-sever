@@ -1,0 +1,112 @@
+// FreelancerVault backend schema.
+// Mirrors the enums in packages/shared-types so the API and the DB never
+// drift apart on how a transaction/balance/KYC state is represented.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PaymentRail {
+  FLUTTERWAVE
+  CRYPTO
+}
+
+enum TransactionSource {
+  FLUTTERWAVE_COLLECTION
+  FLUTTERWAVE_PAYOUT
+  CRYPTO_DEPOSIT
+  CRYPTO_WITHDRAWAL
+  CONVERSION
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REVERSED
+}
+
+enum TransactionDirection {
+  CREDIT
+  DEBIT
+}
+
+enum KycStatus {
+  NOT_STARTED
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id          String    @id @default(cuid())
+  email       String    @unique
+  passwordHash String
+  kycStatus   KycStatus @default(NOT_STARTED)
+
+  /// Self-custody wallet address registered from bmoni_embedded_sdk, proven
+  /// via a signMessage ownership challenge (Phase 2). Null until then.
+  walletAddress String? @unique
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  ledgerEntries LedgerEntry[]
+  transactions  Transaction[]
+
+  @@map("users")
+}
+
+/// Append-only. Every credit/debit from any rail is one row here; a
+/// balance is the sum of entries for a (userId, currency) pair.
+model LedgerEntry {
+  id        String               @id @default(cuid())
+  userId    String
+  user      User                 @relation(fields: [userId], references: [id])
+  currency  String
+  /// Decimal string, e.g. "125.50" — never a float, to avoid precision loss.
+  amount    Decimal              @db.Decimal(24, 8)
+  direction TransactionDirection
+  rail      PaymentRail
+
+  transactionId String      @unique
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, currency])
+  @@map("ledger_entries")
+}
+
+/// The unified transaction history shown in the app — one row per event
+/// regardless of which rail produced it.
+model Transaction {
+  id        String               @id @default(cuid())
+  userId    String
+  user      User                 @relation(fields: [userId], references: [id])
+  rail      PaymentRail
+  source    TransactionSource
+  direction TransactionDirection
+  currency  String
+  amount    Decimal              @db.Decimal(24, 8)
+  status    TransactionStatus    @default(PENDING)
+
+  /// Flutterwave transaction reference, or on-chain tx hash. Used for
+  /// webhook/deposit idempotency — must not double-credit on replay.
+  externalReference String? @unique
+
+  metadata  Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ledgerEntry LedgerEntry?
+
+  @@index([userId, status])
+  @@map("transactions")
+}

@@ -1,0 +1,23 @@
+node_modules/
+dist/
+lib/
+.turbo/
+*.log
+.env
+.env.local
+
+# Android
+apps/mobile/android/build/
+apps/mobile/android/.cxx/
+apps/mobile/android/.gradle/
+*.iml
+.idea/
+
+# iOS
+apps/mobile/ios/build/
+apps/mobile/ios/Pods/
+apps/mobile/ios/*.xcworkspace
+*.xcuserstate
+
+# misc
+.DS_Store
