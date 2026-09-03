@@ -1,10 +1,17 @@
-import { Controller, Get } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { KycService, KycSubmission } from './kyc.service';
 
 @Controller('kyc')
 export class KycController {
-  // TODO(Phase 1): POST /submit, GET /status
-  @Get()
-  placeholder() {
-    return { module: 'kyc', status: 'not implemented yet' };
+  constructor(private readonly kyc: KycService) {}
+
+  @Post('submissions')
+  submit(@Body() input: KycSubmission) {
+    return this.kyc.submit(input);
+  }
+
+  @Get('submissions/:id')
+  status(@Param('id') id: string) {
+    return this.kyc.getStatus(id);
   }
 }
