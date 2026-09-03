@@ -1,10 +1,22 @@
-import { Controller, Get } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { FlutterwaveService, PayoutRequest, VirtualAccountRequest } from './flutterwave.service';
 
 @Controller('flutterwave')
 export class FlutterwaveController {
-  // TODO(Phase 1): POST /virtual-accounts, POST /payouts, GET /fx-quote
-  @Get()
-  placeholder() {
-    return { module: 'flutterwave', status: 'not implemented yet' };
+  constructor(private readonly flutterwave: FlutterwaveService) {}
+
+  @Post('virtual-accounts')
+  createVirtualAccount(@Body() input: VirtualAccountRequest) {
+    return this.flutterwave.createVirtualAccount(input);
+  }
+
+  @Post('payouts')
+  createPayout(@Body() input: PayoutRequest) {
+    return this.flutterwave.createPayout(input);
+  }
+
+  @Get('banks')
+  listBanks(@Query('country') country?: string) {
+    return this.flutterwave.listBanks(country ?? 'NG');
   }
 }
